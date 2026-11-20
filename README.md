@@ -111,7 +111,7 @@ git checkout -b feat/book-crud
 ※ OpenAI API 키는 GitHub에 커밋하지 않습니다.
 
 ## 8. 개발 진행 현황
-
+[]안에 x를 넣어 체크 하실 수 있습니다.
 - [x] 프로젝트 초기 기획 및 설계
 - [x] GitHub 저장소 생성 및 초기 커밋
 - [x] React 및 Vite 초기 프로젝트 구성
