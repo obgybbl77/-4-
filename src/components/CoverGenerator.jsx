@@ -1,5 +1,5 @@
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 const AI_URL = "http://localhost:3001/api";
 
@@ -27,17 +27,20 @@ function CoverGenerator({ book, onSave, onBack }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const requested = useRef(false);
 
   // 저장된 프롬프트가 비어 있을 때만 추천
   useEffect(() => {
-    if (book.coverPrompt?.trim() || requested.current) return;
+    if (book.coverPrompt?.trim()) {
+      setPrompt(book.coverPrompt);
+      setRecommendLoading(false);
+      return;
+    }
 
-    requested.current = true;
     let active = true;
 
     async function recommend() {
       setRecommendLoading(true);
+      setError("");
 
       try {
         const data = await postAI("recommend-prompt", {
@@ -48,11 +51,17 @@ function CoverGenerator({ book, onSave, onBack }) {
           content: book.content,
         });
 
-        if (active) setPrompt(data.prompt);
+        if (active) {
+          setPrompt(data.prompt || "");
+        }
       } catch (err) {
-        if (active) setError(err.message);
+        if (active) {
+          setError(err.message);
+        }
       } finally {
-        if (active) setRecommendLoading(false);
+        if (active) {
+          setRecommendLoading(false);
+        }
       }
     }
 
