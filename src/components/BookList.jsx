@@ -2,9 +2,10 @@ import BookCard from './BookCard';
 import { useState } from 'react';                   
 import { GENRES } from './BookForm';               
 
-function BookList({ books, onSelect, onCreate}) {     
+function BookList({ books, onSelect, onCreate, onToggleLike }) {     
   const [keyword, setKeyword] = useState('');       
   const [genre, setGenre] = useState('');        //'' = 전체 장르
+  const [onlyLiked, setOnlyLiked] = useState(false);
 
 
     if (books.length === 0) {
@@ -26,15 +27,17 @@ function BookList({ books, onSelect, onCreate}) {
       book.title.toLowerCase().includes(search) ||
       book.author.toLowerCase().includes(search);
   const matchGenre = genre === '' || book.genre === genre;
-  return matchKeyword && matchGenre;
+  const matchLiked = !onlyLiked || book.liked;
+  return matchKeyword && matchGenre && matchLiked;
 });
-
+ 
   const resetFilter = () => {
     setKeyword('');
     setGenre('');
+    setOnlyLiked(false);
 };
-
-
+ 
+ 
     return (
       <section>
         <div className="search-bar">
@@ -51,8 +54,15 @@ function BookList({ books, onSelect, onCreate}) {
               <option key={g} value={g}>{g}</option>
             ))}
           </select>
+          <button
+            type="button"
+            className={onlyLiked ? 'like-filter active' : 'like-filter'}
+            onClick={() => setOnlyLiked(!onlyLiked)}
+          >
+            ♥ 즐겨찾기만
+          </button>
         </div>
-
+ 
         {filteredBooks.length === 0 ? (
           <div className="empty-result">
             <p>조건에 맞는 도서가 없어요.</p>
@@ -61,13 +71,14 @@ function BookList({ books, onSelect, onCreate}) {
         ) : (
           <ul className="book-list">
             {filteredBooks.map((book) => (
-              <BookCard key={book.id} book={book} onSelect={onSelect} />
+              <BookCard key={book.id} book={book} onSelect={onSelect} onToggleLike={onToggleLike} />
             ))}
           </ul>
         )}
       </section>
     );
-
+ 
 }
-
+ 
 export default BookList;
+ 
