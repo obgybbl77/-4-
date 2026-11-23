@@ -1,4 +1,4 @@
-
+import { Chip, Paper, Box, Typography, TextField, Button, Alert, CircularProgress, Divider} from "@mui/material";
 import { useEffect, useState } from "react";
 import { composeBookCover } from "../utils/composeBookCover";
 
@@ -176,24 +176,37 @@ function CoverGenerator({ book, onSave, onBack }) {
   const busy = recommendLoading || imageLoading || saving;
 
   return (
-    <section className="cover-generator">
-      <button onClick={onBack} disabled={busy}>
+    <Paper sx={{ p: 3 }}>
+      <Button onClick={onBack} disabled={busy}>
         ← 도서 상세로
-      </button>
+      </Button>
 
-      <h2>AI 도서 표지 생성</h2>
-      <p>
-        {book.title} · {book.author}
-      </p>
+      <Box sx={{ borderLeft: '4px solid #9760a8', pl: 2, mt: 2, mb: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#1B3A5C' }}>
+          ✨ AI 도서 표지 생성
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+          <Chip label={book.title} size="small" sx={{ bgcolor: '#f3edf7', color: '#9760a8', fontWeight: 'bold' }} />
+          <Typography variant="body2" color="text.secondary">{book.author}</Typography>
+        </Box>
+      </Box>
+      <Divider sx={{ mb: 3 }} />
 
-      <h3>표지 생성 프롬프트</h3>
+      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
+        표지 생성 프롬프트
+      </Typography>
 
       {recommendLoading && (
-        <p>AI 추천 문구 생성 중...</p>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <CircularProgress size={16} />
+          <Typography variant="body2" color="text.secondary">AI 추천 문구 생성 중...</Typography>
+        </Box>
       )}
 
-      <textarea
+      <TextField
+        multiline
         rows={7}
+        fullWidth
         value={prompt}
         onChange={(e) => {
           setPrompt(e.target.value);
@@ -201,41 +214,37 @@ function CoverGenerator({ book, onSave, onBack }) {
         }}
         disabled={busy}
         placeholder="표지에 원하는 분위기를 입력하세요."
-        style={{ width: "100%", padding: "12px" }}
       />
 
-      <div className="cover-tagline-field">
-        <label htmlFor="coverTagline">
-          표지 한 줄 소개 (선택)
-        </label>
+      <TextField
+        label="표지 한 줄 소개 (선택)"
+        fullWidth
+        value={tagline}
+        onChange={(e) => setTagline(e.target.value)}
+        placeholder="직접 입력하거나 AI 추천 문구를 수정하세요."
+        disabled={busy}
+        helperText={`${tagline.length} / 60`}
+        slotProps={{ htmlInput: { maxLength: 60 } }}
+        sx={{ mt: 2 }}
+      />
 
-        <input
-          id="coverTagline"
-          type="text"
-          value={tagline}
-          onChange={(e) => setTagline(e.target.value)}
-          placeholder="직접 입력하거나 AI 추천 문구를 수정하세요."
-          maxLength={60}
-          disabled={busy}
-        />
-      </div>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, mb: 2 }}>
+        생성 버튼을 누르면 API 이용 요금이 발생합니다.
+      </Typography>
 
-      <p>생성 버튼을 누르면 API 이용 요금이 발생합니다.</p>
 
-      <button
+
+      <Button
+        variant="contained"
         onClick={generate}
         disabled={busy || !prompt.trim()}
+        startIcon={imageLoading ? <CircularProgress size={16} color="inherit" /> : null}
+        sx={{ bgcolor: '#9760a8' }}
       >
-        {imageLoading
-          ? "표지 생성 중..."
-          : "AI 표지 생성 / 재생성"}
-      </button>
+        {imageLoading ? "표지 생성 중..." : "AI 표지 생성 / 재생성"}
+      </Button>
 
-      {error && (
-        <p role="alert" style={{ color: "red" }}>
-          {error}
-        </p>
-      )}
+       {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
 
       {preview && (
         <div style={{ marginTop: "24px" }}>
@@ -259,7 +268,7 @@ function CoverGenerator({ book, onSave, onBack }) {
           </div>
         </div>
       )}
-    </section>
+    </Paper>
   );
 }
 
