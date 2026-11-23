@@ -4,6 +4,7 @@ import Header from './components/Header';
 import BookList from './components/BookList';
 import BookDetail from './components/BookDetail';
 import BookForm from './components/BookForm';
+import CoverGenerator from './components/CoverGenerator';
 
 const BOOKS_URL = 'http://localhost:3000/books';
 
@@ -36,6 +37,7 @@ function App() {
   const goDetail = (id) => { setSelectedId(id); setPage('detail'); };
   const goCreate = () => setPage('create');
   const goEdit = () => setPage('edit');
+  const goGenerateCover = () => setPage('generate');
 
   // 도서 등록 (POST)
   const handleAddBook = async (formData) => {
@@ -94,6 +96,28 @@ function App() {
     }
   };
 
+  const handleSaveCover = async (id, coverData) => {
+  const res = await fetch(`${BOOKS_URL}/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(coverData),
+  });
+
+  if (!res.ok) {
+    throw new Error('표지 저장에 실패했어요.');
+  }
+
+  const updatedBook = await res.json();
+
+  setBooks((prev) =>
+    prev.map((book) =>
+      String(book.id) === String(id) ? updatedBook : book
+    )
+  );
+
+  goDetail(id);
+};
+
   const selectedBook = books.find((b) => b.id === selectedId);
 
   if (loading) return <p>불러오는 중...</p>;
@@ -114,6 +138,7 @@ function App() {
             onBack={goList}
             onEdit={goEdit}
             onDelete={() => handleDeleteBook(selectedBook.id)}
+            onGenerate={goGenerateCover}
           />
         )}
 
@@ -129,6 +154,15 @@ function App() {
             initialBook={selectedBook}
             onSave={(data) => handleUpdateBook(selectedBook.id, data)}
             onCancel={() => goDetail(selectedBook.id)}
+          />
+        )}
+
+        {page === 'generate' && selectedBook && (
+          <CoverGenerator
+          key={selectedBook.id}
+          book={selectedBook}
+          onBack={() => goDetail(selectedBook.id)}
+          onSave={handleSaveCover}
           />
         )}
       </main>

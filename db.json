@@ -1,15 +1,40 @@
 {
   "books": [
     {
-      "id": 1,
+      "id": "1",
       "title": "별빛 아래의 서점",
       "author": "홍길동",
       "publisher": "별빛출판사",
       "genre": "에세이",
       "content": "작은 마을 서점의 1년을 담은 에세이",
+      "coverPrompt": "",
       "coverImageUrl": "",
       "createdAt": "2026-11-20T02:00:00.000Z",
-      "updatedAt": "2026-11-20T07:07:02.453Z"
+      "updatedAt": "2026-11-20T08:07:11.205Z"
+    },
+    {
+      "id": "2",
+      "title": "바람의 기억",
+      "author": "김유진",
+      "publisher": "푸른출판사",
+      "genre": "소설",
+      "content": "잊힌 기억을 찾아 떠나는 여행",
+      "coverPrompt": "",
+      "coverImageUrl": "",
+      "createdAt": "2026-11-20T02:00:00.000Z",
+      "updatedAt": "2026-11-20T02:00:00.000Z"
+    },
+    {
+      "id": "3",
+      "title": "고양이와 하루",
+      "author": "이민서",
+      "publisher": "달빛출판사",
+      "genre": "에세이",
+      "content": "고양이와 함께하는 평범하고 특별한 일상",
+      "coverPrompt": "",
+      "coverImageUrl": "",
+      "createdAt": "2026-11-20T02:00:00.000Z",
+      "updatedAt": "2026-11-20T02:00:00.000Z"
     }
   ]
 }

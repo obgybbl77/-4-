@@ -9,6 +9,7 @@ function BookForm({ initialBook, onSave, onCancel }) {
   const [publisher, setPublisher] = useState(initialBook?.publisher || '');
   const [genre, setGenre] = useState(initialBook?.genre || '');
   const [content, setContent] = useState(initialBook?.content || '');
+  const [coverPrompt, setCoverPrompt] = useState(initialBook?.coverPrompt || '');
 
   const handleSubmit = () => {
     
@@ -16,7 +17,7 @@ function BookForm({ initialBook, onSave, onCancel }) {
       alert('제목, 저자, 출판사, 장르는 꼭 입력해 주세요.');
       return;
     }
-    onSave({ title, author, publisher, genre, content });
+    onSave({ title, author, publisher, genre, content, coverPrompt });
   };
 
   return (
@@ -37,8 +38,18 @@ function BookForm({ initialBook, onSave, onCancel }) {
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="표지 생성 문구 (선택, 500자까지)"
+        placeholder="도서 내용 또는 소개"
         maxLength={500}
+      />
+
+      <label htmlFor="coverPrompt">AI 표지 생성 문구 (선택)</label>
+
+      <textarea
+        id="coverPrompt"
+        value={coverPrompt}
+        onChange={(e) => setCoverPrompt(e.target.value)}
+        placeholder="원하는 표지 분위기를 입력하세요. 비워두면 AI가 추천합니다."
+        rows={4}
       />
 
       <div className="form-buttons">
