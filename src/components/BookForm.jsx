@@ -9,6 +9,7 @@ const MAX = {
   publisher: 30,
   content: 500,
   coverPrompt: 300,
+  coverTagline: 60,
 };
 
 function BookForm({ initialBook, onSave, onCancel }) {
@@ -19,6 +20,7 @@ function BookForm({ initialBook, onSave, onCancel }) {
   const [genre, setGenre] = useState(initialBook?.genre || '');
   const [content, setContent] = useState(initialBook?.content || '');
   const [coverPrompt, setCoverPrompt] = useState(initialBook?.coverPrompt || '');
+  const [coverTagline, setCoverTagline] = useState(initialBook?.coverTagline || '');
   const [errors, setErrors] = useState({});  
 
 
@@ -39,6 +41,8 @@ function BookForm({ initialBook, onSave, onCancel }) {
   if (content.trim().length > MAX.content) newErrors.content = `도서 내용은 ${MAX.content}자 이내로 입력해 주세요.`;
   if (coverPrompt.trim().length > MAX.coverPrompt) newErrors.coverPrompt = `표지 생성 문구는 ${MAX.coverPrompt}자 이내로 입력해 주세요.`;
 
+  if (coverTagline.trim().length > MAX.coverTagline) newErrors.coverTagline =`표지 한 줄 소개는 ${MAX.coverTagline}자 이내로 입력해 주세요.`;
+
   return newErrors;
 };
 
@@ -58,6 +62,7 @@ const handleSubmit = () => {
     genre,
     content: content.trim(),
     coverPrompt: coverPrompt.trim(),
+    coverTagline: coverTagline.trim(),
   });
 };
 
@@ -124,6 +129,31 @@ const handleSubmit = () => {
       />
       <p className="char-count">{coverPrompt.length} / {MAX.coverPrompt}</p>
       {errors.coverPrompt && <p className="error-text">{errors.coverPrompt}</p>}
+
+      <label htmlFor="coverTagline">
+        표지 한 줄 소개 (선택)
+      </label>
+
+      <input
+        id="coverTagline"
+        type="text"
+        value={coverTagline}
+        onChange={(e) => {
+          setCoverTagline(e.target.value);
+          clearError('coverTagline');
+        }}
+        placeholder="직접 입력하거나 비워두면 AI가 추천합니다."
+        maxLength={MAX.coverTagline}
+        className={errors.coverTagline ? 'input-error' : ''}
+      />
+
+      <p className="char-count">
+        {coverTagline.length} / {MAX.coverTagline}
+      </p>
+
+      {errors.coverTagline && (
+        <p className="error-text">{errors.coverTagline}</p>
+      )}
 
       <div className="form-buttons">
         <button onClick={handleSubmit}>저장</button>
