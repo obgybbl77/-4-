@@ -145,21 +145,37 @@ function App() {
     setSelectedBook(updatedBook);
     goDetail(id);
   };
- 
- 
-  if (loading) return <p>불러오는 중...</p>;
-  if (error) return <p>에러: {error}</p>;
- 
-  return (
-    <>
-      <Header onCreate={goCreate} />
-      {message.text && (
-        <p className={`message ${message.type}`}>{message.text}</p>
-      )}
- 
-      <main>
+
+
+
+// 화면 처리 순서
+  const renderContent = () => {
+    // 1. 로딩 중
+    if (loading) {
+      return (
+        <div className="status-box">
+          <div className="spinner"></div>
+          <p>도서를 불러오는 중...</p>
+        </div>
+      );
+    }
+
+    // 2. 서버 에러
+    if (error) {
+      return (
+        <div className="status-box status-error">
+          <p className="status-title">⚠️ {error}</p>
+          <p>json-server가 켜져 있는지 확인해 주세요.</p>
+          <button onClick={() => window.location.reload()}>다시 시도</button>
+        </div>
+      );
+    }
+
+    // 3. 정상 호출 — 기존 화면
+    return (
+      <>
         {page === 'list' && (
-          <BookList books={books} onSelect={goDetail} onToggleLike={handleToggleLike} />
+          <BookList books={books} onSelect={goDetail} onCreate={goCreate} onToggleLike={handleToggleLike} />
         )}
  
         {page === 'detail' && selectedBook && (
@@ -189,13 +205,26 @@ function App() {
  
         {page === 'generate' && selectedBook && (
           <CoverGenerator
-          key={selectedBook.id}
-          book={selectedBook}
-          onBack={() => goDetail(selectedBook.id)}
-          onSave={handleSaveCover}
+            key={selectedBook.id}
+            book={selectedBook}
+            onBack={() => goDetail(selectedBook.id)}
+            onSave={handleSaveCover}
           />
         )}
-      </main>
+      </>
+    );
+  };
+
+
+  return (
+    <>
+      <Header onCreate={goCreate} />
+      {message.text && (
+        <p className={`message ${message.type}`}>{message.text}</p>
+      )}
+
+      <main>{renderContent()}</main>
+
     </>
   );
 }
