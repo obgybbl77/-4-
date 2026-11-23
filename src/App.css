@@ -123,3 +123,16 @@ button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; backgrou
   font-size: 11px;
   margin: 2px 0;
 }
+
+/* ─ 검색 · 필터 (BookList) ─ */
+.search-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+.search-input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+.search-select { width: 140px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white; }
+.search-input:focus, .search-select:focus { outline: none; border-color: #5b5bd6; }
+.empty-result { padding: 40px 0; text-align: center; color: #6b7280; }
+.empty-result button { margin-top: 12px; }
+ 
+/* ─ 폼 유효성 검사 (BookForm) ─ */
+.book-form .input-error { border-color: #e5484d; }
+.error-text { margin: -6px 0 10px; font-size: 13px; color: #e5484d; }
+.char-count { margin: -6px 0 10px; font-size: 12px; color: #9ca3af; text-align: right; }
