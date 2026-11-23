@@ -18,11 +18,6 @@ function BookCard({ book, onSelect, onToggleLike }) {
               ) : (
                 <span>표지없음</span>
               )}
-              <div className='cover-text'>
-                <p className='cover-title'>{book.title}</p>
-                <p className='cover-author'>{book.author}</p>
-                <p className='cover-publisher'>{book.publisher}</p>
-              </div>
             </div>
  
             {/* 뒷면: 책 내용 */}

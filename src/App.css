@@ -14,10 +14,10 @@ button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; backgrou
 .genre-tag { font-size: 12px; background: #e0f2f1; padding: 2px 8px; border-radius: 10px; }
  
 /* ─ 표지 영역 (카드 · 상세 공통) ─ */
-/* AI 표지가 세로형(2:3)이라 칸도 2:3으로 맞춰서 잘리지 않게 함 */
+
 .book-cover {
-  aspect-ratio: 2 / 3;      /* 예전 height: 220px 대신 */
-  position: relative;       /* cover-text를 표지 위에 겹치기 위해 필요 */
+  aspect-ratio: 2 / 3;      
+  position: relative;       
   overflow: hidden;
   background: #e8eaf6;
   border-radius: 6px;
@@ -101,28 +101,28 @@ button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; backgrou
 /* ─ 책 뒤집기 카드 (BookCard) ─ */
 .flip-card {
   aspect-ratio: 2 / 3;
-  perspective: 1000px;              /* 3D 원근감 */
+  perspective: 1000px;              
 }
 .flip-inner {
   position: relative;
   width: 100%;
   height: 100%;
-  transition: transform 0.6s;       /* 0.6초 동안 돌기 */
+  transition: transform 0.6s;       
   transform-style: preserve-3d;
 }
 .flip-card:hover .flip-inner {
-  transform: rotateY(180deg);       /* 마우스 올리면 180도 회전 */
+  transform: rotateY(180deg);       
 }
 .flip-front,
 .flip-back {
   position: absolute;
   inset: 0;
-  backface-visibility: hidden;      /* 뒤집힌 면은 안 보이게 */
+  backface-visibility: hidden;      
   -webkit-backface-visibility: hidden;
   border-radius: 6px;
 }
 .flip-back {
-  transform: rotateY(180deg);       /* 뒷면은 처음부터 뒤집어 둠 */
+  transform: rotateY(180deg);       
   background: #1B3A5C;
   color: white;
   padding: 16px;
@@ -140,7 +140,7 @@ button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; backgrou
 .flip-back .back-content {
   font-size: 14px;
   line-height: 1.7;
-  white-space: pre-wrap;            /* 줄바꿈 그대로 보이기 */
+  white-space: pre-wrap;            
 }
  
 .like-btn {
@@ -168,3 +168,7 @@ button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; backgrou
 .like-filter { white-space: nowrap; margin-right: 0; }
 .like-filter.active { background: #e5484d; color: white; border-color: #e5484d; }
  
+@media (max-width: 600px) {
+  .detail-body { flex-direction: column; }
+  .detail-body .book-cover { width: 100%; }
+}
