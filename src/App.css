@@ -24,3 +24,18 @@ button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; backgrou
 .book-form input, .book-form select, .book-form textarea { display: block; width: 100%; padding: 8px 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
 .book-form textarea { height: 100px; resize: vertical; }
 .form-buttons button:first-child { background: #5b5bd6; color: white; border: none; }
+
+
+
+.message {
+  position: fixed;         
+  right: 24px;
+  bottom: 24px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+.message.success { background: #30a46c; }
+.message.error   { background: #e5484d; }  

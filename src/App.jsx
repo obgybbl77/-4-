@@ -8,6 +8,17 @@ import CoverGenerator from './components/CoverGenerator';
 
 const BOOKS_URL = 'http://localhost:3000/books';
 
+async function request(url, method = 'GET', body) {
+  const options = {method};
+  if (body) {
+    options.headers = { 'Content-Type': 'application/json' };
+    options.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`서버 요청에 실패했어요 ${res.status}`);
+  return res.json();
+}
+
 function App() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,25 +26,47 @@ function App() {
 
   const [page, setPage] = useState('list');          
   const [selectedId, setSelectedId] = useState(null); 
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [message, setMessage] = useState({ text: '', type: '' });
+
+ 
+  const showMessage = (text, type) => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage({ text: '', type: '' }), 2000);
+  };
 
   
   useEffect(() => {
     async function loadBooks() {
       try {
-        const res = await fetch(BOOKS_URL);
-        const data = await res.json();
+        const data = await request(BOOKS_URL);
         setBooks(data);
       } catch (err) {
         console.error(err);
         setError('도서를 불러오지 못했어요.');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     loadBooks();
   }, []);
 
+    useEffect(() => {
+    if (selectedId === null) return;
+    async function loadBook() {
+      try {
+        const data = await request(`${BOOKS_URL}/${selectedId}`);
+        setSelectedBook(data);
+      } catch (err) {
+        console.error(err);
+        alert('도서 상세 정보를 불러오지 못했어요.');
+      }
+    }
+    loadBook();
+  }, [selectedId]);
+
   // 화면 이동 함수
-  const goList = () => { setPage('list'); setSelectedId(null); };
+  const goList = () => { setPage('list'); setSelectedId(null); setSelectedBook(null); };
   const goDetail = (id) => { setSelectedId(id); setPage('detail'); };
   const goCreate = () => setPage('create');
   const goEdit = () => setPage('edit');
@@ -43,42 +76,40 @@ function App() {
   const handleAddBook = async (formData) => {
     try {
       const now = new Date().toISOString();
-      const newBook = {
-        ...formData,
-        coverImageUrl: '',
-        createdAt: now,
-        updatedAt: now,
-      };
-      const res = await fetch(BOOKS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newBook),
-      });
-      if (!res.ok) throw new Error('등록 실패');
-      const saved = await res.json();
+      const newBook = { ...formData, coverImageUrl: '', createdAt: now, updatedAt: now };
+      const saved = await request(BOOKS_URL, 'POST', newBook);
       setBooks([...books, saved]);
+      showMessage('도서가 등록되었어요.', 'success');
       goList();
     } catch (err) {
       console.error(err);
-      alert('도서 등록에 실패했어요.');
+      showMessage('도서 등록에 실패했어요.', 'error');
     }
   };
 
   // 도서 수정 (PATCH)
   const handleUpdateBook = async (id, formData) => {
+    const changed = {};
+    for (const key in formData) {
+      if (formData[key] !== (selectedBook[key] || '')) {
+        changed[key] = formData[key];
+      }
+    }
+    if (Object.keys(changed).length === 0) {
+      alert('바뀐 내용이 없어요.');
+      return;
+    }
     try {
-      const res = await fetch(`${BOOKS_URL}/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, updatedAt: new Date().toISOString() }),
+      const updated = await request(`${BOOKS_URL}/${id}`, 'PATCH', {
+        ...changed,
+        updatedAt: new Date().toISOString(),
       });
-      if (!res.ok) throw new Error('수정 실패');
-      const updated = await res.json();
       setBooks(books.map((b) => (b.id === id ? updated : b)));
-      goDetail(id);
+      showMessage('도서가 수정되었어요.', 'success');
+      goList();
     } catch (err) {
       console.error(err);
-      alert('도서 수정에 실패했어요.');
+      showMessage('도서 수정에 실패했어요.', 'error');
     }
   };
 
@@ -86,39 +117,25 @@ function App() {
   const handleDeleteBook = async (id) => {
     if (!confirm('정말 삭제할까요?')) return;
     try {
-      const res = await fetch(`${BOOKS_URL}/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('삭제 실패');
+      await request(`${BOOKS_URL}/${id}`, 'DELETE');
       setBooks(books.filter((b) => b.id !== id));
+      showMessage('도서가 삭제되었어요.', 'success');
       goList();
     } catch (err) {
       console.error(err);
-      alert('도서 삭제에 실패했어요.');
+      showMessage('도서 삭제에 실패했어요.', 'error');
     }
   };
 
-  const handleSaveCover = async (id, coverData) => {
-  const res = await fetch(`${BOOKS_URL}/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(coverData),
-  });
+    const handleSaveCover = async (id, coverData) => {
+    const updatedBook = await request(`${BOOKS_URL}/${id}`, 'PATCH', coverData);
+    setBooks((prev) =>
+      prev.map((book) => (String(book.id) === String(id) ? updatedBook : book))
+    );
+    setSelectedBook(updatedBook);
+    goDetail(id);
+  };
 
-  if (!res.ok) {
-    throw new Error('표지 저장에 실패했어요.');
-  }
-
-  const updatedBook = await res.json();
-
-  setBooks((prev) =>
-    prev.map((book) =>
-      String(book.id) === String(id) ? updatedBook : book
-    )
-  );
-
-  goDetail(id);
-};
-
-  const selectedBook = books.find((b) => b.id === selectedId);
 
   if (loading) return <p>불러오는 중...</p>;
   if (error) return <p>에러: {error}</p>;
@@ -126,6 +143,9 @@ function App() {
   return (
     <>
       <Header onCreate={goCreate} />
+      {message.text && (
+        <p className={`message ${message.type}`}>{message.text}</p>
+      )}
 
       <main>
         {page === 'list' && (
