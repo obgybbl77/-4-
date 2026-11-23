@@ -1,4 +1,4 @@
-function BookDetail({ book, onBack, onEdit, onDelete }) {
+function BookDetail({ book, onBack, onEdit, onDelete, onGenerate }) {
   return (
     <section className="book-detail">
       <button onClick={onBack}>← 목록으로</button>
@@ -17,7 +17,7 @@ function BookDetail({ book, onBack, onEdit, onDelete }) {
       </div>
 
       <div className="detail-buttons">
-        <button>✨ AI 표지 생성</button>
+        <button onClick={onGenerate}>✨ AI 표지 생성</button>
         <button onClick={onEdit}>수정</button>
         <button onClick={onDelete}>삭제</button>
       </div>
