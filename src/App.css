@@ -13,10 +13,11 @@ button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; backgrou
 .book-card p { font-size: 13px; color: #374151; margin: 4px 0; }
 .genre-tag { font-size: 12px; background: #e0f2f1; padding: 2px 8px; border-radius: 10px; }
  
-
+/* ─ 표지 영역 (카드 · 상세 공통) ─ */
+/* AI 표지가 세로형(2:3)이라 칸도 2:3으로 맞춰서 잘리지 않게 함 */
 .book-cover {
-  aspect-ratio: 2 / 3;      
-  position: relative;       
+  aspect-ratio: 2 / 3;      /* 예전 height: 220px 대신 */
+  position: relative;       /* cover-text를 표지 위에 겹치기 위해 필요 */
   overflow: hidden;
   background: #e8eaf6;
   border-radius: 6px;
@@ -96,4 +97,74 @@ button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; backgrou
 .book-form .input-error { border-color: #e5484d; }
 .error-text { margin: -6px 0 10px; font-size: 13px; color: #e5484d; }
 .char-count { margin: -6px 0 10px; font-size: 12px; color: #9ca3af; text-align: right; }
+ 
+/* ─ 책 뒤집기 카드 (BookCard) ─ */
+.flip-card {
+  aspect-ratio: 2 / 3;
+  perspective: 1000px;              /* 3D 원근감 */
+}
+.flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s;       /* 0.6초 동안 돌기 */
+  transform-style: preserve-3d;
+}
+.flip-card:hover .flip-inner {
+  transform: rotateY(180deg);       /* 마우스 올리면 180도 회전 */
+}
+.flip-front,
+.flip-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;      /* 뒤집힌 면은 안 보이게 */
+  -webkit-backface-visibility: hidden;
+  border-radius: 6px;
+}
+.flip-back {
+  transform: rotateY(180deg);       /* 뒷면은 처음부터 뒤집어 둠 */
+  background: #1B3A5C;
+  color: white;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.flip-back .back-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+.flip-back .back-content {
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;            /* 줄바꿈 그대로 보이기 */
+}
+ 
+.like-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #e5484d;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s;
+}
+.like-btn:hover { transform: scale(1.15); }
+ 
+.like-filter { white-space: nowrap; margin-right: 0; }
+.like-filter.active { background: #e5484d; color: white; border-color: #e5484d; }
  

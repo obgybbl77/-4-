@@ -5,9 +5,9 @@ import BookList from './components/BookList';
 import BookDetail from './components/BookDetail';
 import BookForm from './components/BookForm';
 import CoverGenerator from './components/CoverGenerator';
-
+ 
 const BOOKS_URL = 'http://localhost:3000/books';
-
+ 
 async function request(url, method = 'GET', body) {
   const options = {method};
   if (body) {
@@ -18,23 +18,23 @@ async function request(url, method = 'GET', body) {
   if (!res.ok) throw new Error(`서버 요청에 실패했어요 ${res.status}`);
   return res.json();
 }
-
+ 
 function App() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+ 
   const [page, setPage] = useState('list');          
   const [selectedId, setSelectedId] = useState(null); 
   const [selectedBook, setSelectedBook] = useState(null);
   const [message, setMessage] = useState({ text: '', type: '' });
-
+ 
  
   const showMessage = (text, type) => {
     setMessage({ text, type });
     setTimeout(() => setMessage({ text: '', type: '' }), 2000);
   };
-
+ 
   
   useEffect(() => {
     async function loadBooks() {
@@ -50,7 +50,7 @@ function App() {
     }
     loadBooks();
   }, []);
-
+ 
     useEffect(() => {
     if (selectedId === null) return;
     async function loadBook() {
@@ -64,14 +64,14 @@ function App() {
     }
     loadBook();
   }, [selectedId]);
-
+ 
   // 화면 이동 함수
   const goList = () => { setPage('list'); setSelectedId(null); setSelectedBook(null); };
   const goDetail = (id) => { setSelectedId(id); setPage('detail'); };
   const goCreate = () => setPage('create');
   const goEdit = () => setPage('edit');
   const goGenerateCover = () => setPage('generate');
-
+ 
   // 도서 등록 (POST)
   const handleAddBook = async (formData) => {
     try {
@@ -86,7 +86,7 @@ function App() {
       showMessage('도서 등록에 실패했어요.', 'error');
     }
   };
-
+ 
   // 도서 수정 (PATCH)
   const handleUpdateBook = async (id, formData) => {
     const changed = {};
@@ -112,7 +112,7 @@ function App() {
       showMessage('도서 수정에 실패했어요.', 'error');
     }
   };
-
+ 
   // 도서 삭제 (DELETE)
   const handleDeleteBook = async (id) => {
     if (!confirm('정말 삭제할까요?')) return;
@@ -126,8 +126,18 @@ function App() {
       showMessage('도서 삭제에 실패했어요.', 'error');
     }
   };
-
-    const handleSaveCover = async (id, coverData) => {
+ 
+  const handleToggleLike = async (book) => {
+    try {
+      const updated = await request(`${BOOKS_URL}/${book.id}`, 'PATCH', { liked: !book.liked });
+      setBooks(books.map((b) => (b.id === book.id ? updated : b)));
+    } catch (err) {
+      console.error(err);
+      showMessage('즐겨찾기 변경에 실패했어요.', 'error');
+    }
+  };
+ 
+  const handleSaveCover = async (id, coverData) => {
     const updatedBook = await request(`${BOOKS_URL}/${id}`, 'PATCH', coverData);
     setBooks((prev) =>
       prev.map((book) => (String(book.id) === String(id) ? updatedBook : book))
@@ -135,23 +145,23 @@ function App() {
     setSelectedBook(updatedBook);
     goDetail(id);
   };
-
-
+ 
+ 
   if (loading) return <p>불러오는 중...</p>;
   if (error) return <p>에러: {error}</p>;
-
+ 
   return (
     <>
       <Header onCreate={goCreate} />
       {message.text && (
         <p className={`message ${message.type}`}>{message.text}</p>
       )}
-
+ 
       <main>
         {page === 'list' && (
-          <BookList books={books} onSelect={goDetail} />
+          <BookList books={books} onSelect={goDetail} onToggleLike={handleToggleLike} />
         )}
-
+ 
         {page === 'detail' && selectedBook && (
           <BookDetail
             book={selectedBook}
@@ -161,14 +171,14 @@ function App() {
             onGenerate={goGenerateCover}
           />
         )}
-
+ 
         {page === 'create' && (
           <BookForm
             onSave={handleAddBook}
             onCancel={goList}
           />
         )}
-
+ 
         {page === 'edit' && selectedBook && (
           <BookForm
             initialBook={selectedBook}
@@ -176,7 +186,7 @@ function App() {
             onCancel={() => goDetail(selectedBook.id)}
           />
         )}
-
+ 
         {page === 'generate' && selectedBook && (
           <CoverGenerator
           key={selectedBook.id}
@@ -189,5 +199,6 @@ function App() {
     </>
   );
 }
-
+ 
 export default App;
+ 
