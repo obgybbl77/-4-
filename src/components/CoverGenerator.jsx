@@ -216,23 +216,23 @@ function CoverGenerator({ book, onSave, onBack }) {
         placeholder="표지에 원하는 분위기를 입력하세요."
       />
 
-      <div className="cover-tagline-field">
-        <label htmlFor="coverTagline">
-          표지 한 줄 소개 (선택)
-        </label>
+      <TextField
+        label="표지 한 줄 소개 (선택)"
+        fullWidth
+        value={tagline}
+        onChange={(e) => setTagline(e.target.value)}
+        placeholder="직접 입력하거나 AI 추천 문구를 수정하세요."
+        disabled={busy}
+        helperText={`${tagline.length} / 60`}
+        slotProps={{ htmlInput: { maxLength: 60 } }}
+        sx={{ mt: 2 }}
+      />
 
-        <input
-          id="coverTagline"
-          type="text"
-          value={tagline}
-          onChange={(e) => setTagline(e.target.value)}
-          placeholder="직접 입력하거나 AI 추천 문구를 수정하세요."
-          maxLength={60}
-          disabled={busy}
-        />
-      </div>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, mb: 2 }}>
+        생성 버튼을 누르면 API 이용 요금이 발생합니다.
+      </Typography>
 
-      <p>생성 버튼을 누르면 API 이용 요금이 발생합니다.</p>
+
 
       <Button
         variant="contained"
