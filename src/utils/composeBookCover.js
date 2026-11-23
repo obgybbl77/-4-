@@ -1,129 +1,217 @@
+import { COVER_STYLE } from "./coverStyle";
 
+// 글자 너비에 맞춰 여러 줄로 나누기
+function wrapText(ctx, text, maxWidth) {
+  const lines = [];
+  let line = "";
+
+  for (const char of Array.from(String(text))) {
+    const next = line + char;
+
+    if (ctx.measureText(next).width > maxWidth && line) {
+      lines.push(line.trim());
+      line = char.trimStart();
+    } else {
+      line = next;
+    }
+  }
+
+  if (line.trim()) {
+    lines.push(line.trim());
+  }
+
+  return lines;
+}
+
+// 텍스트를 Canvas에 그리기 (가로쓰기)
+function drawText(ctx, text, style, canvas) {
+  if (!text?.trim()) return;
+
+  const { horizontalPadding, fontFamily } = COVER_STYLE.layout;
+  const maxWidth = canvas.width - horizontalPadding * 2;
+
+  let fontSize = style.fontSize;
+  let lines = [];
+
+  do {
+    ctx.font = `${style.fontWeight} ${fontSize}px ${fontFamily}`;
+    lines = wrapText(ctx, text, maxWidth);
+
+    if (lines.length <= style.maxLines) break;
+
+    fontSize -= 2;
+  } while (fontSize >= (style.minFontSize || style.fontSize));
+
+  ctx.font = `${style.fontWeight} ${fontSize}px ${fontFamily}`;
+  ctx.fillStyle = style.color;
+  ctx.textAlign = style.align;
+  ctx.textBaseline = "top";
+
+  const x = canvas.width * style.x;
+  const lineHeight = fontSize * style.lineHeight;
+
+  const visibleLines = lines.slice(0, style.maxLines);
+
+  if (lines.length > style.maxLines) {
+    let last = visibleLines[style.maxLines - 1] || "";
+
+    while (
+      last &&
+      ctx.measureText(last + "…").width > maxWidth
+    ) {
+      last = last.slice(0, -1);
+    }
+
+    visibleLines[style.maxLines - 1] = last + "…";
+  }
+
+  visibleLines.forEach((line, index) => {
+    ctx.fillText(
+      line,
+      x,
+      style.y + index * lineHeight,
+      maxWidth
+    );
+  });
+}
+
+// 세로 텍스트 쓰기 전용 함수
+function drawVerticalText(ctx, text, style, canvas) {
+  if (!text?.trim()) return;
+
+  const fontFamily = COVER_STYLE.layout.fontFamily;
+
+  ctx.font = `${style.fontWeight} ${style.fontSize}px ${fontFamily}`;
+  ctx.fillStyle = style.color;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  const x = canvas.width * style.x;
+  const y = style.y;
+  const letterSpacing = style.fontSize * style.lineHeight;
+
+  Array.from(text).forEach((char, index) => {
+    ctx.fillText(
+      char,
+      x,
+      y + index * letterSpacing
+    );
+  });
+}
+
+// AI 배경 + 정확한 도서 정보 합성
 export async function composeBookCover(imageUrl, book) {
+  const style = COVER_STYLE;
+
   const img = new Image();
   img.src = imageUrl;
   await img.decode();
 
   const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 1536;
+  canvas.width = style.width;
+  canvas.height = style.height;
 
   const ctx = canvas.getContext("2d");
-  const { width: w, height: h } = canvas;
 
-  // 이미지가 캔버스를 가득 채우도록 배치
+  if (!ctx) {
+    throw new Error("Canvas를 초기화할 수 없습니다.");
+  }
+
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // 배경 이미지를 표지 비율에 맞춰 채우기
   const scale = Math.max(w / img.width, h / img.height);
-  const sw = w / scale;
-  const sh = h / scale;
+  const sourceWidth = w / scale;
+  const sourceHeight = h / scale;
 
   ctx.drawImage(
     img,
-    (img.width - sw) / 2,
-    (img.height - sh) / 2,
-    sw,
-    sh,
+    (img.width - sourceWidth) / 2,
+    (img.height - sourceHeight) / 2,
+    sourceWidth,
+    sourceHeight,
     0,
     0,
     w,
     h
   );
 
-  // 글자가 잘 보이도록 상단·하단에 그라데이션
-  const gradient = ctx.createLinearGradient(0, 0, 0, h);
-  gradient.addColorStop(0, "rgba(0,0,0,0.65)");
-  gradient.addColorStop(0.3, "rgba(0,0,0,0)");
-  gradient.addColorStop(0.65, "rgba(0,0,0,0)");
-  gradient.addColorStop(1, "rgba(0,0,0,0.8)");
+  // 글자 가독성을 위한 그라데이션
+  if (style.overlay.enabled) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, h);
 
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, w, h);
+    gradient.addColorStop(
+      0,
+      `rgba(0,0,0,${style.overlay.topOpacity})`
+    );
+    gradient.addColorStop(0.3, "rgba(0,0,0,0)");
+    gradient.addColorStop(0.65, "rgba(0,0,0,0)");
+    gradient.addColorStop(
+      1,
+      `rgba(0,0,0,${style.overlay.bottomOpacity})`
+    );
 
-  ctx.fillStyle = "#ffffff";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-
-  // 제목: 긴 제목은 여러 줄로 나누기
-  const title = String(book.title || "").trim();
-  const titleFontSize = 90;
-
-  ctx.font = `bold ${titleFontSize}px sans-serif`;
-
-  const maxWidth = w - 140;
-  const lines = [];
-  let line = "";
-
-  for (const char of title) {
-    const next = line + char;
-
-    if (ctx.measureText(next).width > maxWidth && line) {
-      lines.push(line.trim());
-      line = char;
-    } else {
-      line = next;
-    }
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
   }
 
-  if (line) lines.push(line.trim());
+  // 브라우저에서 사용할 글꼴 로딩
+  const fonts = [
+    style.title,
+    style.tagline,
+    style.author,
+    style.publisher,
+  ];
 
-  lines.forEach((text, i) => {
-    ctx.fillText(text, w / 2, 135 + i * 110);
-  });
+  await Promise.all(
+    fonts.map((item) =>
+      document.fonts.load(
+        `${item.fontWeight} ${item.fontSize}px ${style.layout.fontFamily}`
+      )
+    )
+  );
 
-
-  // 짧은 표지 소개 문구
-  // coverTagline이 있으면 우선 사용하고,
-  // 없으면 content에서 최대 45자까지 가져오기
-const tagline = String(book.coverTagline || "").trim();
-
-const shortTagline = tagline;
-
-  if (shortTagline) {
-    ctx.font = "34px sans-serif";
-    ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "center";
-
-    const maxTaglineWidth = w - 160;
-    const words = shortTagline.split(/\s+/);
-    const taglineLines = [];
-    let currentLine = "";
-
-    for (const word of words) {
-      const nextLine = currentLine
-        ? `${currentLine} ${word}`
-        : word;
-
-      if (
-        ctx.measureText(nextLine).width > maxTaglineWidth &&
-        currentLine
-      ) {
-        taglineLines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = nextLine;
-      }
-    }
-
-    if (currentLine) taglineLines.push(currentLine);
-
-    // 저자명 위쪽에 최대 두 줄 표시
-    taglineLines.slice(0, 2).forEach((line, index) => {
-      ctx.fillText(
-        line,
-        w / 2,
-        h - 440 + index * 48
-      );
-    });
+  // 책 제목
+  if (style.title.direction === "vertical") {
+    drawVerticalText(
+      ctx,
+      String(book.title || ""),
+      style.title,
+      canvas
+    );
+  } else {
+    drawText(
+      ctx,
+      String(book.title || ""),
+      style.title,
+      canvas
+    );
   }
 
+  // 한 줄 소개
+  drawText(
+    ctx,
+    String(book.coverTagline || ""),
+    style.tagline,
+    canvas
+  );
 
-  // 저자명
-  ctx.font = "48px sans-serif";
-  ctx.fillText(String(book.author || ""), w / 2, h - 260);
+  // 저자
+  drawText(
+    ctx,
+    String(book.author || ""),
+    style.author,
+    canvas
+  );
 
-  // 출판사명
-  ctx.font = "36px sans-serif";
-  ctx.fillText(String(book.publisher || ""), w / 2, h - 130);
+  // 출판사
+  drawText(
+    ctx,
+    String(book.publisher || ""),
+    style.publisher,
+    canvas
+  );
 
-  // 텍스트가 실제로 포함된 PNG 반환
   return canvas.toDataURL("image/png");
 }
