@@ -10,11 +10,10 @@ function BookCard({ book, onSelect, onToggleLike }) {
             {/* 앞면: 원래 표지 그대로 */}
             <div className='book-cover flip-front'>
               {book.coverImageUrl ? (
-                <img
-                  src={book.coverImageUrl}
-                  alt={`${book.title} 표지`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
+                <>
+                  <img className='cover-blur' src={book.coverImageUrl} alt='' aria-hidden='true' />
+                  <img className='cover-main' src={book.coverImageUrl} alt={`${book.title} 표지`} />
+                </>
               ) : (
                 <span>표지없음</span>
               )}

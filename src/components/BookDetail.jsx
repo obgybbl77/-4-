@@ -12,7 +12,7 @@ function BookDetail({ book, onBack, onEdit, onDelete, onGenerate }) {
             alt={`${book.title} 표지`}
             style={{
               width: "100%",
-              height: "100%",
+              height: "auto",
               objectFit: "cover",
               display: "block",
             }}
