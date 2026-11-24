@@ -1,11 +1,26 @@
 import { Chip, Paper, Box, Typography, TextField, Button, Alert, CircularProgress, Divider} from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { composeBookCover } from "../utils/composeBookCover";
 
 const AI_URL = "http://localhost:3001/api";
 
 // 같은 도서 정보로 발생한 중복 추천 요청을 재사용
 const recommendCache = new Map();
+
+// 동일 입력의 AI 배경 이미지 재사용 (브라우저 메모리에 최대 3개)
+const imageCache = new Map();
+const pendingImages = new Map();
+const IMAGE_CACHE_LIMIT = 3;
+
+function getImageRequest(book, prompt) {
+  return {
+    prompt: prompt.trim(),
+    title: book.title,
+    author: book.author,
+    publisher: book.publisher,
+    content: book.content,
+  };
+}
 
 async function postAI(path, payload) {
   const res = await fetch(`${AI_URL}/${path}`, {
@@ -27,6 +42,8 @@ function CoverGenerator({ book, onSave, onBack }) {
   const [prompt, setPrompt] = useState(book.coverPrompt || "");
   const [tagline, setTagline] = useState(book.coverTagline || "");
   const [preview, setPreview] = useState("");
+  const [previewKey, setPreviewKey] = useState("");
+  const imageRequestInProgress = useRef(false);
 
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
@@ -119,36 +136,79 @@ function CoverGenerator({ book, onSave, onBack }) {
     book.coverTagline,
   ]);
 
-  // AI 배경 이미지 생성 · 재생성
-  const generate = async () => {
-    if (!prompt.trim() || imageLoading || recommendLoading || saving) {
+  // 같은 프롬프트/도서 조건에서만 같은 AI 배경을 재사용한다.
+  const currentImageKey = JSON.stringify(getImageRequest(book, prompt));
+  const hasCachedImage = imageCache.has(currentImageKey);
+
+  // 무료: 기존 캐시 조회만 수행. 캐시가 없어도 이미지 생성 API를 호출하지 않는다.
+  function reuseImage() {
+    if (imageRequestInProgress.current || recommendLoading || saving) return;
+
+    const cached = imageCache.get(currentImageKey);
+    if (!cached) {
+      setError("재사용할 배경 이미지가 없습니다. 최초 1회는 새 이미지 생성이 필요합니다.");
       return;
     }
 
+    setError("");
+    setPreview(cached);
+    setPreviewKey(currentImageKey);
+  }
+
+  // 유료: 사용자가 명시적으로 요청할 때만 새 배경을 생성한다.
+  async function generateNewImage() {
+    if (!prompt.trim() || imageRequestInProgress.current || recommendLoading || saving) {
+      return;
+    }
+
+    imageRequestInProgress.current = true;
     setImageLoading(true);
     setError("");
-    setPreview("");
+
+    const payload = getImageRequest(book, prompt);
+    const requestKey = JSON.stringify(payload);
+    let request;
 
     try {
-      const data = await postAI("generate-cover", {
-        prompt,
-        title: book.title,
-        author: book.author,
-        publisher: book.publisher,
-        content: book.content,
-      });
+      // 같은 요청이 진행 중이라면 Promise만 공유한다.
+      request = pendingImages.get(requestKey);
+      if (!request) {
+        request = postAI("generate-cover", payload);
+        pendingImages.set(requestKey, request);
+      }
+
+      const data = await request;
+      if (!data?.imageUrl) {
+        throw new Error("생성된 이미지가 없습니다.");
+      }
+
+      imageCache.delete(requestKey);
+      imageCache.set(requestKey, data.imageUrl);
+      while (imageCache.size > IMAGE_CACHE_LIMIT) {
+        imageCache.delete(imageCache.keys().next().value);
+      }
 
       setPreview(data.imageUrl);
+      setPreviewKey(requestKey);
     } catch (err) {
       setError(err.message || "이미지 생성에 실패했습니다.");
     } finally {
+      if (pendingImages.get(requestKey) === request) {
+        pendingImages.delete(requestKey);
+      }
+      imageRequestInProgress.current = false;
       setImageLoading(false);
     }
-  };
+  }
 
   // 최종 프롬프트 + 한 줄 카피 + 완성된 표지 PNG 저장
   const save = async () => {
-    if (!preview || saving) return;
+    if (!preview || saving || imageLoading) return;
+
+    if (previewKey !== currentImageKey) {
+      setError("프롬프트 또는 도서 정보가 변경되었습니다. 해당 조건의 이미지를 다시 선택하거나 생성해 주세요.");
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -211,6 +271,7 @@ function CoverGenerator({ book, onSave, onBack }) {
         onChange={(e) => {
           setPrompt(e.target.value);
           setPreview("");
+          setPreviewKey("");
         }}
         disabled={busy}
         placeholder="표지에 원하는 분위기를 입력하세요."
@@ -229,20 +290,29 @@ function CoverGenerator({ book, onSave, onBack }) {
       />
 
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, mb: 2 }}>
-        생성 버튼을 누르면 API 이용 요금이 발생합니다.
+        기존 배경 재사용은 OpenAI 호출이 없습니다. 새 이미지 생성 시에만 API 이용 요금이 발생합니다.
+        {hasCachedImage ? " (현재 입력 조건의 캐시 있음)" : " (현재 입력 조건의 캐시 없음)"}
       </Typography>
 
+      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+        <Button
+          variant="outlined"
+          onClick={reuseImage}
+          disabled={busy || !prompt.trim() || !hasCachedImage}
+        >
+          기존 이미지 재사용 (무료)
+        </Button>
 
-
-      <Button
-        variant="contained"
-        onClick={generate}
-        disabled={busy || !prompt.trim()}
-        startIcon={imageLoading ? <CircularProgress size={16} color="inherit" /> : null}
-        sx={{ bgcolor: '#9760a8' }}
-      >
-        {imageLoading ? "표지 생성 중..." : "AI 표지 생성 / 재생성"}
-      </Button>
+        <Button
+          variant="contained"
+          onClick={generateNewImage}
+          disabled={busy || !prompt.trim()}
+          startIcon={imageLoading ? <CircularProgress size={16} color="inherit" /> : null}
+          sx={{ bgcolor: '#9760a8' }}
+        >
+          {imageLoading ? "표지 생성 중..." : "새 AI 이미지 생성 (API 호출)"}
+        </Button>
+      </Box>
 
        {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
 
