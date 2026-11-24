@@ -4,9 +4,26 @@ import cors from "cors";
 import OpenAI from "openai";
 
 const app = express();
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// 화면에서 입력한 키 우선 사용, 없으면 .env 키 사용
+function getClient(req) {
+  const apiKey = req.get("x-openai-api-key")?.trim() || process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    const err = new Error("API Key가 없습니다.");
+    err.status = 401;
+    throw err;
+  }
+  return new OpenAI({ apiKey });
+}
+
+// 상태 코드별 사용자 안내 문구
+function errorMessage(err, fallback) {
+  if (err.status === 401) return "API Key가 없거나 올바르지 않습니다. 키를 확인해 주세요.";
+  if (err.status === 429) return "요청이 많거나 사용량을 초과했습니다. 잠시 후 다시 시도해 주세요.";
+  return fallback;
+}
+
+// 허용 이미지 크기
+const ALLOWED_SIZES = ["1024x1536", "1024x1024", "1536x1024"];
 
 app.use(cors({ origin: /^http:\/\/localhost:517\d{1,2}$/, }));
 app.use(express.json({ limit: "1mb" }));
@@ -30,7 +47,8 @@ app.post("/api/recommend-prompt", async (req, res) => {
         error: "도서 제목이 필요합니다.",
       });
     }
-
+    
+    const client = getClient(req);
     const result = await client.responses.create({
       model: "gpt-4.1-mini",
 
@@ -101,7 +119,7 @@ app.post("/api/recommend-prompt", async (req, res) => {
     console.error("AI 문구 추천 실패:", err.message);
 
     res.status(err.status || 500).json({
-      error: "AI 문구 추천에 실패했습니다.",
+      error: errorMessage(err, "AI 문구 추천에 실패했습니다."),
     });
   }
 });
@@ -111,7 +129,8 @@ app.post("/api/recommend-prompt", async (req, res) => {
 
 app.post("/api/generate-cover", async (req, res) => {
   try {
-    const { prompt, title, author, publisher, content } = req.body;
+    const { prompt, title, author, publisher, content, size } = req.body;
+    const imageSize = ALLOWED_SIZES.includes(size) ? size : "1024x1536";
 
     if (typeof prompt !== "string" || !prompt.trim()) {
       return res.status(400).json({
@@ -157,12 +176,12 @@ app.post("/api/generate-cover", async (req, res) => {
     문자는 생성하지 말고 배경 이미지에만 반영하세요.
     `.trim();
 
-
+    const client = getClient(req);  
     const result = await client.images.generate({
       model: "gpt-image-2",
       prompt: finalPrompt,
       n: 1,
-      size: "1024x1536",
+      size: imageSize,  
       quality: "medium",
       output_format: "png",
     });
@@ -184,7 +203,7 @@ app.post("/api/generate-cover", async (req, res) => {
     });
 
     res.status(err.status || 500).json({
-      error: "AI 표지 생성에 실패했습니다.",
+      error: errorMessage(err, "AI 표지 생성에 실패했습니다."),
     });
   }
 });

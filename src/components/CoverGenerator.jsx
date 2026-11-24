@@ -1,8 +1,20 @@
-import { Chip, Paper, Box, Typography, TextField, Button, Alert, CircularProgress, Divider} from "@mui/material";
+import { Chip, Paper, Box, Typography, TextField, Button, Alert, CircularProgress, Divider, MenuItem, InputAdornment, IconButton } from "@mui/material";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { useEffect, useRef, useState } from "react";
 import { composeBookCover } from "../utils/composeBookCover";
 
 const AI_URL = "http://localhost:3001/api";
+
+// 사용자 입력한 API Key — 화면 옮겨 다녀도 유지되도록 메모리에만 보관 (새로고침하면 사라짐)
+let sessionApiKey = "";
+
+// 이미지 크기 선택
+const SIZE_OPTIONS = [
+  { value: "1024x1536", label: "1024 × 1536 (세로형 · 표지 권장)" },
+  { value: "1024x1024", label: "1024 × 1024 (정사각형)" },
+  { value: "1536x1024", label: "1536 × 1024 (가로형)" },
+];
 
 // 같은 도서 정보로 발생한 중복 추천 요청을 재사용
 const recommendCache = new Map();
@@ -12,9 +24,10 @@ const imageCache = new Map();
 const pendingImages = new Map();
 const IMAGE_CACHE_LIMIT = 3;
 
-function getImageRequest(book, prompt) {
+function getImageRequest(book, prompt, size) {
   return {
     prompt: prompt.trim(),
+    size,  
     title: book.title,
     author: book.author,
     publisher: book.publisher,
@@ -22,10 +35,14 @@ function getImageRequest(book, prompt) {
   };
 }
 
-async function postAI(path, payload) {
+async function postAI(path, payload, apiKey) {
+  const headers = { "Content-Type": "application/json" };
+  // 입력한 키 있으면 헤더로 전달(없으면 서버의 .env 키 사용)
+  if (apiKey?.trim()) headers["x-openai-api-key"] = apiKey.trim();
+
   const res = await fetch(`${AI_URL}/${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -49,6 +66,9 @@ function CoverGenerator({ book, onSave, onBack }) {
   const [imageLoading, setImageLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [apiKey, setApiKey] = useState(sessionApiKey); 
+  const [showKey, setShowKey] = useState(false);   
+  const [size, setSize] = useState("1024x1536"); 
 
   // 프롬프트와 한 줄 카피 중 비어 있는 항목만 AI 추천
   useEffect(() => {
@@ -86,7 +106,7 @@ function CoverGenerator({ book, onSave, onBack }) {
         let request = recommendCache.get(cacheKey);
 
         if (!request) {
-          request = postAI("recommend-prompt", payload);
+          request = postAI("recommend-prompt", payload, sessionApiKey);
           recommendCache.set(cacheKey, request);
 
           // 실패한 요청은 캐시에서 제거
@@ -137,7 +157,7 @@ function CoverGenerator({ book, onSave, onBack }) {
   ]);
 
   // 같은 프롬프트/도서 조건에서만 같은 AI 배경을 재사용한다.
-  const currentImageKey = JSON.stringify(getImageRequest(book, prompt));
+  const currentImageKey = JSON.stringify(getImageRequest(book, prompt, size));
   const hasCachedImage = imageCache.has(currentImageKey);
 
   // 무료: 기존 캐시 조회만 수행. 캐시가 없어도 이미지 생성 API를 호출하지 않는다.
@@ -165,7 +185,7 @@ function CoverGenerator({ book, onSave, onBack }) {
     setImageLoading(true);
     setError("");
 
-    const payload = getImageRequest(book, prompt);
+    const payload = getImageRequest(book, prompt, size);
     const requestKey = JSON.stringify(payload);
     let request;
 
@@ -173,7 +193,7 @@ function CoverGenerator({ book, onSave, onBack }) {
       // 같은 요청이 진행 중이라면 Promise만 공유한다.
       request = pendingImages.get(requestKey);
       if (!request) {
-        request = postAI("generate-cover", payload);
+        request = postAI("generate-cover", payload, apiKey);
         pendingImages.set(requestKey, request);
       }
 
@@ -233,6 +253,30 @@ function CoverGenerator({ book, onSave, onBack }) {
     }
   };
 
+    // 비어 있는 프롬프트 / 한 줄 소개를 입력한 키로 다시 추천받기
+      async function recommendAgain() {
+        setRecommendLoading(true);
+        setError("");
+        try {
+          const data = await postAI("recommend-prompt", {
+            title: book.title,
+            author: book.author,
+            publisher: book.publisher,
+            genre: book.genre,
+            content: book.content,
+            coverPrompt: prompt.trim(),
+            coverTagline: tagline.trim(),
+          }, apiKey);
+          if (!prompt.trim()) setPrompt(data.prompt || "");
+          if (!tagline.trim()) setTagline(data.tagline || "");
+        } catch (err) {
+          setError(err.message || "AI 추천에 실패했습니다.");
+        } finally {
+          setRecommendLoading(false);
+        }
+      }
+
+
   const busy = recommendLoading || imageLoading || saving;
 
   return (
@@ -252,9 +296,69 @@ function CoverGenerator({ book, onSave, onBack }) {
       </Box>
       <Divider sx={{ mb: 3 }} />
 
-      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-        표지 생성 프롬프트
-      </Typography>
+        {/* ───── API Key · 이미지 크기 (세로 배치) ───── */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
+          <TextField
+            label="OpenAI API Key"
+            type={showKey ? "text" : "password"}
+            value={apiKey}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              sessionApiKey = e.target.value;
+            }}
+            placeholder="sk-..."
+            disabled={busy}
+            helperText="조별 키를 입력하세요. 저장되지 않으며, 비워두면 서버(.env)의 키를 사용합니다."
+            fullWidth
+            slotProps={{
+              htmlInput: { autoComplete: "off" },
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowKey(!showKey)}
+                      edge="end"
+                      aria-label={showKey ? "API Key 숨기기" : "API Key 보기"}
+                    >
+                      {showKey ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+
+          <TextField
+            select
+            label="이미지 크기"
+            value={size}
+            onChange={(e) => {
+              setSize(e.target.value);
+              setPreview("");
+              setPreviewKey("");
+            }}
+            disabled={busy}
+            helperText="GPT Image 2 · 세로형이 표지에 가장 잘 맞아요"
+            fullWidth
+          >
+            {SIZE_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            표지 생성 프롬프트
+          </Typography>
+          {(!prompt.trim() || !tagline.trim()) && (
+            <Button size="small" onClick={recommendAgain} disabled={busy}>
+              빈 칸 AI 추천 받기
+            </Button>
+          )}
+        </Box>
 
       {recommendLoading && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
