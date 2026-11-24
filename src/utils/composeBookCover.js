@@ -69,7 +69,7 @@ function drawText(ctx, text, style, canvas) {
     ctx.fillText(
       line,
       x,
-      style.y + index * lineHeight,
+      style.y * (canvas.height / COVER_STYLE.height) + index * lineHeight,
       maxWidth
     );
   });
@@ -87,7 +87,7 @@ function drawVerticalText(ctx, text, style, canvas) {
   ctx.textBaseline = "middle";
 
   const x = canvas.width * style.x;
-  const y = style.y;
+  const y = style.y * (canvas.height / COVER_STYLE.height);
   const letterSpacing = style.fontSize * style.lineHeight;
 
   Array.from(text).forEach((char, index) => {
@@ -108,8 +108,8 @@ export async function composeBookCover(imageUrl, book) {
   await img.decode();
 
   const canvas = document.createElement("canvas");
-  canvas.width = style.width;
-  canvas.height = style.height;
+  canvas.width = img.width;
+  canvas.height = img.height;
 
   const ctx = canvas.getContext("2d");
 
