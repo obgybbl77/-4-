@@ -28,7 +28,7 @@ function App() {
   const [selectedId, setSelectedId] = useState(null); 
   const [selectedBook, setSelectedBook] = useState(null);
   const [message, setMessage] = useState({ text: '', type: '' });
- 
+  const [listKey, setListKey] = useState(0);
  
   const showMessage = (text, type) => {
     setMessage({ text, type });
@@ -66,7 +66,12 @@ function App() {
   }, [selectedId]);
  
   // 화면 이동 함수
-  const goList = () => { setPage('list'); setSelectedId(null); setSelectedBook(null); };
+  const goList = () => {
+    setPage('list');
+    setSelectedId(null);
+    setSelectedBook(null);
+    setListKey(listKey + 1); // 검색어 · 장르 · 즐겨찾기 필터 초기화
+  };
   const goDetail = (id) => { setSelectedId(id); setPage('detail'); };
   const goCreate = () => setPage('create');
   const goEdit = () => setPage('edit');
@@ -175,7 +180,7 @@ function App() {
     return (
       <>
         {page === 'list' && (
-          <BookList books={books} onSelect={goDetail} onCreate={goCreate} onToggleLike={handleToggleLike} />
+          <BookList key={listKey} books={books} onSelect={goDetail} onCreate={goCreate} onToggleLike={handleToggleLike} />
         )}
  
         {page === 'detail' && selectedBook && (
@@ -218,7 +223,7 @@ function App() {
 
   return (
     <>
-      <Header onCreate={goCreate} />
+      <Header onCreate={goCreate} onList={goList} />
       {message.text && (
         <p className={`message ${message.type}`}>{message.text}</p>
       )}
