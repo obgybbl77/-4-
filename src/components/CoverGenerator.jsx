@@ -12,9 +12,11 @@ const imageCache = new Map();
 const pendingImages = new Map();
 const IMAGE_CACHE_LIMIT = 3;
 
-function getImageRequest(book, prompt) {
+function getImageRequest(book, prompt, model, size) {
   return {
     prompt: prompt.trim(),
+    model,
+    size,
     title: book.title,
     author: book.author,
     publisher: book.publisher,
@@ -22,10 +24,13 @@ function getImageRequest(book, prompt) {
   };
 }
 
-async function postAI(path, payload) {
+async function postAI(path, payload, apiKey = "") {
   const res = await fetch(`${AI_URL}/${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(apiKey.trim() ? { "X-User-OpenAI-Key": apiKey.trim() } : {}),
+    },
     body: JSON.stringify(payload),
   });
 
@@ -43,12 +48,17 @@ function CoverGenerator({ book, onSave, onBack }) {
   const [tagline, setTagline] = useState(book.coverTagline || "");
   const [preview, setPreview] = useState("");
   const [previewKey, setPreviewKey] = useState("");
+  // 선택 사항: 입력한 키는 컴포넌트 메모리에서만 사용 (DB/localStorage 저장 금지)
+  const [personalApiKey, setPersonalApiKey] = useState("");
+  const [imageModel, setImageModel] = useState("gpt-image-2");
+  const [imageSize, setImageSize] = useState("1024x1536");
   const imageRequestInProgress = useRef(false);
 
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [manualRecommendLoading, setManualRecommendLoading] = useState(false);
 
   // 프롬프트와 한 줄 카피 중 비어 있는 항목만 AI 추천
   useEffect(() => {
@@ -136,13 +146,39 @@ function CoverGenerator({ book, onSave, onBack }) {
     book.coverTagline,
   ]);
 
+  // 선택한 개인 키로 추천을 다시 요청할 때에만 추가 LLM 호출
+  async function requestNewRecommendation() {
+    if (recommendLoading || manualRecommendLoading || imageLoading || saving) return;
+    setManualRecommendLoading(true);
+    setError("");
+    try {
+      const data = await postAI("recommend-prompt", {
+        title: book.title,
+        author: book.author,
+        publisher: book.publisher,
+        genre: book.genre,
+        content: book.content,
+        coverPrompt: "",
+        coverTagline: "",
+      }, personalApiKey);
+      setPrompt(data.prompt || "");
+      setTagline(data.tagline || "");
+      setPreview("");
+      setPreviewKey("");
+    } catch (err) {
+      setError(err.message || "AI 추천에 실패했습니다.");
+    } finally {
+      setManualRecommendLoading(false);
+    }
+  }
+
   // 같은 프롬프트/도서 조건에서만 같은 AI 배경을 재사용한다.
-  const currentImageKey = JSON.stringify(getImageRequest(book, prompt));
+  const currentImageKey = JSON.stringify(getImageRequest(book, prompt, imageModel, imageSize));
   const hasCachedImage = imageCache.has(currentImageKey);
 
   // 무료: 기존 캐시 조회만 수행. 캐시가 없어도 이미지 생성 API를 호출하지 않는다.
   function reuseImage() {
-    if (imageRequestInProgress.current || recommendLoading || saving) return;
+    if (imageRequestInProgress.current || recommendLoading || manualRecommendLoading || saving) return;
 
     const cached = imageCache.get(currentImageKey);
     if (!cached) {
@@ -157,7 +193,7 @@ function CoverGenerator({ book, onSave, onBack }) {
 
   // 유료: 사용자가 명시적으로 요청할 때만 새 배경을 생성한다.
   async function generateNewImage() {
-    if (!prompt.trim() || imageRequestInProgress.current || recommendLoading || saving) {
+    if (!prompt.trim() || imageRequestInProgress.current || recommendLoading || manualRecommendLoading || saving) {
       return;
     }
 
@@ -165,7 +201,7 @@ function CoverGenerator({ book, onSave, onBack }) {
     setImageLoading(true);
     setError("");
 
-    const payload = getImageRequest(book, prompt);
+    const payload = getImageRequest(book, prompt, imageModel, imageSize);
     const requestKey = JSON.stringify(payload);
     let request;
 
@@ -173,7 +209,7 @@ function CoverGenerator({ book, onSave, onBack }) {
       // 같은 요청이 진행 중이라면 Promise만 공유한다.
       request = pendingImages.get(requestKey);
       if (!request) {
-        request = postAI("generate-cover", payload);
+        request = postAI("generate-cover", payload, personalApiKey);
         pendingImages.set(requestKey, request);
       }
 
@@ -233,7 +269,7 @@ function CoverGenerator({ book, onSave, onBack }) {
     }
   };
 
-  const busy = recommendLoading || imageLoading || saving;
+  const busy = recommendLoading || manualRecommendLoading || imageLoading || saving;
 
   return (
     <Paper sx={{ p: 3 }}>
@@ -251,6 +287,46 @@ function CoverGenerator({ book, onSave, onBack }) {
         </Box>
       </Box>
       <Divider sx={{ mb: 3 }} />
+
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
+        <TextField
+          select label="이미지 생성 모델" size="small" value={imageModel}
+          onChange={(e) => {
+            setImageModel(e.target.value);
+            setPreview(""); setPreviewKey("");
+          }}
+          slotProps={{ select: { native: true } }}
+          disabled={busy} sx={{ minWidth: 190 }}
+        >
+          <option value="gpt-image-2">GPT Image 2</option>
+          <option value="gpt-image-1.5">GPT Image 1.5</option>
+        </TextField>
+        <TextField
+          select label="이미지 크기" size="small" value={imageSize}
+          onChange={(e) => {
+            setImageSize(e.target.value);
+            setPreview(""); setPreviewKey("");
+          }}
+          slotProps={{ select: { native: true } }}
+          disabled={busy} sx={{ minWidth: 220 }}
+        >
+          <option value="1024x1536">세로형 (1024×1536)</option>
+          <option value="1024x1024">정사각형 (1024×1024)</option>
+        </TextField>
+      </Box>
+      <TextField
+        fullWidth type="password" size="small" label="개인 OpenAI API Key (선택)"
+        autoComplete="off"
+        value={personalApiKey}
+        onChange={(e) => setPersonalApiKey(e.target.value)}
+        disabled={busy}
+        helperText="비워두면 서버 .env 키 사용. 입력값은 이 화면 메모리에만 유지되고 요청 시 서버로 전달됩니다. 공유 컴퓨터·공개 배포에서 사용하지 마세요."
+        sx={{ mb: 2 }}
+      />
+      <Button size="small" variant="text" onClick={requestNewRecommendation}
+        disabled={busy || !book.title?.trim()} sx={{ mb: 2 }}>
+        {manualRecommendLoading ? "AI 추천 요청 중..." : "AI 추천 다시 받기 (API 호출)"}
+      </Button>
 
       <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
         표지 생성 프롬프트

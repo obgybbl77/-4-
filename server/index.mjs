@@ -4,11 +4,20 @@ import cors from "cors";
 import OpenAI from "openai";
 
 const app = express();
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// 서버 기본 키 또는 선택적으로 전달된 사용자 키로 요청별 클라이언트 생성
+const defaultApiKey = process.env.OPENAI_API_KEY;
+function clientFor(req) {
+  const supplied = req.get("X-User-OpenAI-Key")?.trim();
+  const apiKey = supplied || defaultApiKey;
+  if (!apiKey) {
+    const error = new Error("사용 가능한 OpenAI API Key가 없습니다.");
+    error.status = 400;
+    throw error;
+  }
+  return new OpenAI({ apiKey });
+}
 
-app.use(cors({ origin: /^http:\/\/localhost:517\d{1,2}$/, }));
+app.use(cors({ origin: /^http:\/\/localhost:517\d{1,2}$/, allowedHeaders: ["Content-Type", "X-User-OpenAI-Key"] }));
 app.use(express.json({ limit: "1mb" }));
 
 // ① 프롬프트 공란일 때 LLM 추천
@@ -31,7 +40,7 @@ app.post("/api/recommend-prompt", async (req, res) => {
       });
     }
 
-    const result = await client.responses.create({
+    const result = await clientFor(req).responses.create({
       model: "gpt-4.1-mini",
 
       instructions: `
@@ -100,9 +109,8 @@ app.post("/api/recommend-prompt", async (req, res) => {
   } catch (err) {
     console.error("AI 문구 추천 실패:", err.message);
 
-    res.status(err.status || 500).json({
-      error: "AI 문구 추천에 실패했습니다.",
-    });
+    const status = [400, 401, 403, 429].includes(err.status) ? err.status : 500;
+    res.status(status).json({ error: status === 401 ? "API Key 인증에 실패했습니다." : status === 429 ? "API 요청 한도 또는 사용량 한도를 확인해 주세요." : status === 400 ? "AI 요청 설정을 확인해 주세요." : "AI 문구 추천에 실패했습니다." });
   }
 });
 
@@ -111,7 +119,13 @@ app.post("/api/recommend-prompt", async (req, res) => {
 
 app.post("/api/generate-cover", async (req, res) => {
   try {
-    const { prompt, title, author, publisher, content } = req.body;
+    const { prompt, title, author, publisher, content, model = "gpt-image-2", size = "1024x1536" } = req.body;
+
+    const allowedModels = ["gpt-image-2", "gpt-image-1.5"];
+    const allowedSizes = ["1024x1536", "1024x1024"];
+    if (!allowedModels.includes(model) || !allowedSizes.includes(size)) {
+      return res.status(400).json({ error: "지원하지 않는 이미지 모델 또는 크기입니다." });
+    }
 
     if (typeof prompt !== "string" || !prompt.trim()) {
       return res.status(400).json({
@@ -129,7 +143,7 @@ app.post("/api/generate-cover", async (req, res) => {
 
     const finalPrompt = `
     실제 서점에서 판매하는 책의 앞표지에 사용할
-    고품질 세로형 배경 일러스트를 생성하세요.
+    고품질 책 표지 배경 일러스트를 생성하세요.
 
     [표지의 분위기 및 시각적 콘셉트]
     ${prompt.trim()}
@@ -138,7 +152,7 @@ app.post("/api/generate-cover", async (req, res) => {
     1. 책의 장르와 내용에 어울리는 배경 일러스트를 제작하세요.
     2. 실제 출판 도서처럼 완성도 높은 구도와 색감을 사용하세요.
     3. 제목과 저자명이 들어갈 상단과 하단에 적절한 여백을 남기세요.
-    4. 이미지 비율은 세로형 2:3으로 구성하세요.
+    4. 선택된 출력 크기는 ${size}입니다. 해당 캔버스 안에서 앞표지를 구성하세요.
     5. 책의 앞표지 이미지만 생성하세요.
       책등, 책 뒷면, 3D 목업이나 주변 배경은 제외하세요.
 
@@ -158,11 +172,11 @@ app.post("/api/generate-cover", async (req, res) => {
     `.trim();
 
 
-    const result = await client.images.generate({
-      model: "gpt-image-2",
+    const result = await clientFor(req).images.generate({
+      model,
       prompt: finalPrompt,
       n: 1,
-      size: "1024x1536",
+      size,
       quality: "medium",
       output_format: "png",
     });
@@ -183,9 +197,8 @@ app.post("/api/generate-cover", async (req, res) => {
       message: err.message,
     });
 
-    res.status(err.status || 500).json({
-      error: "AI 표지 생성에 실패했습니다.",
-    });
+    const status = [400, 401, 403, 429].includes(err.status) ? err.status : 500;
+    res.status(status).json({ error: status === 401 ? "API Key 인증에 실패했습니다." : status === 429 ? "API 요청 한도 또는 사용량 한도를 확인해 주세요." : status === 400 ? "이미지 생성 옵션 또는 요청 내용을 확인해 주세요." : "AI 표지 생성에 실패했습니다." });
   }
 });
 
